@@ -7,6 +7,9 @@ const express = require('express');
 const morgan = require('morgan');
 const path = require('path');
 
+const webpack = require('webpack');
+const webpackConfig = require('../webpack.config');
+
 require('mongoose').connect(MONGO_URI, err => {
   if (err) throw err;
   console.log(`MongoDB connected to ${MONGO_URI}`);
@@ -14,15 +17,25 @@ require('mongoose').connect(MONGO_URI, err => {
 
 const app = express();
 
-app.use('/api', require('./routes/api'));
+const compiler = webpack(webpackConfig);
+
+app.use(require('webpack-dev-middleware')(compiler, {
+  noInfo: true,
+  publicPath: webpackConfig.output.publicPath
+}))
+
+app.use(require('webpack-hot-middleware')(compiler));
 
 app.use(morgan('dev'));
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(cookieParser());
 
-app.get('/', (req, res) => {
-  res.send('Hello');
+app.use('/api', require('./routes/api'));
+
+app.get('*', (req, res) => {
+  let indexPath = path.join(__dirname, '../index.html');
+  res.sendFile(indexPath);
 })
 
 app.listen(PORT, err => {
